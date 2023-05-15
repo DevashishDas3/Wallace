@@ -3,35 +3,43 @@ const app = express();
 // const port = 3000;
 const fs = require('fs');
 const multer = require('multer');
-import { createWorker } from 'tesseract.js';
 
-const worker = await createWorker({
-  logger: m => console.log(m)
-});
-
-(async () => {
-  await worker.loadLanguage('eng');
-  await worker.initialize('eng');
-  const { data: { text } } = await worker.recognize('https://tesseract.projectnaptha.com/img/eng_bw.png');
-  console.log(text);
-  await worker.terminate();
-})();
 
 const depot = multer.diskStorage({
-    destination: (req, res, cb) => {
+    destination: (req, file, cb) => {
         cb(null, "./depot")
     },
-    filename: (req, res, cb) => {
-        cb(null, req.file);
+    filename: (req, file, cb) => {
+      cb(null, file.originalname);
     }
 });
 
-const upload = multer({depot: storage}).single('wall'); //storage: storage
+const upload = multer({depot: depot}).single('wall'); //storage: storage
 app.set('view engine', 'ejs');
 
+//routes
 
-app.get('/uploads', (req, res) => {
-    console.log("Connection Established");
+app.get('/', (req, res) => {
+  res.render('index');
+});
+
+app.post('/upload', (req, res) => {
+  upload(req, res, err => {
+    fs.readFile(`./depot/${req.file.originalname}`, (err,data) => {
+      if(err) return console.log("Wallace request for image unsuccessful due to ", err);
+
+      Worker
+      .recognize(data, 'eng', {tessjs_create_pdf: '1'})
+      .progress(progress => {
+        console.log(progress);
+      })
+      .then(result => {
+        res.send(result.text);
+        var result = result.text;
+      });
+      Worker.terminate();
+    });
+  });
 });
 
 //start server
